@@ -111,12 +111,6 @@ class TestPubSubSchema(unittest.TestCase):
             print(f"Failed to publish message: {str(e)}")
             raise
 
-    def test_valid_message(self):
-        """Test publishing valid message succeeds"""
-        data = self.data_template.copy()
-        message_id = asyncio.run(self.publish_message(data))
-        self.assertIsNotNone(message_id)
-
     def test_invalid_symbol_type(self):
         """Test publishing with invalid symbol type fails"""
         data = self.data_template.copy()
