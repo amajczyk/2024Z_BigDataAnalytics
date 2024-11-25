@@ -1,0 +1,114 @@
+{
+    "wnp": {
+        "Front Page": "https://www.wnp.pl/",
+        "topics": {
+            "energetyka": "https://www.wnp.pl/energetyka/lista",
+            "gornictwo": "https://www.wnp.pl/gornictwo/lista",
+            "gazownictwo": "https://www.wnp.pl/gazownictwo/lista",
+            "hutnictwo": "https://www.wnp.pl/hutnictwo/lista",
+            "nafta": "https://www.wnp.pl/nafta/lista"
+        },
+        "url_matchings": {
+            "starts_with": [
+                "placeholder"
+            ],
+            "included_patterns": [ 
+                "https://www.wnp.pl/energetyka/[^,]+,\\d+.html",
+                "https://www.wnp.pl/gornictwo/[^,]+,\\d+.html",
+                "https://www.wnp.pl/gazownictwo/[^,]+,\\d+.html",
+                "https://www.wnp.pl/hutnictwo/[^,]+,\\d+.html",
+                "https://www.wnp.pl/nafta/[^,]+,\\d+.html"
+            ]
+        },
+        "page_suffix": ["", "15", "30", "45", "60", "75", "90", "105", "120", "135"],
+        "source_site": "wnp.pl",
+        "paragraph_tag": "p",
+        "title_tag": "h1",
+        "date_tag": "date",
+        "keywords_tag": "keyword",
+        "potential_premium_tag": "wrap",
+        "premium_str": "DALSZA CZĘŚĆ ARTYKUŁU JEST DOSTĘPNA DLA SUBSKRYBENTÓW",
+        "exclude": [
+            "content load-more-news",
+            "artmorebegin", 
+            "back",
+            "logo",
+            "dzial"
+            ],
+        "include": []
+    },
+    "wysokienapiecie": {
+        "Front Page": "https://wysokienapiecie.pl/",
+        "topics": {
+            "oze": "https://wysokienapiecie.pl/kategoria/oze/",
+            "fotowoltaika": "https://wysokienapiecie.pl/kategoria/technologia/",
+            "e-mobilnosc": "https://wysokienapiecie.pl/kategoria/e-mobilnosc/",
+            "klimat": "https://wysokienapiecie.pl/kategoria/klimat/",
+            "energetyka-konwencjonalna": "https://wysokienapiecie.pl/kategoria/energetyka-konwencjonalna/",
+            "sieci": "https://wysokienapiecie.pl/kategoria/sieci/",
+            "prawo": "https://wysokienapiecie.pl/kategoria/prawo/",
+            "rynek": "https://wysokienapiecie.pl/kategoria/rynek/"
+        },
+        "url_matchings": {
+            "starts_with": [
+                "placeholder"
+            ],
+            "included_patterns": [ 
+                "https://wysokienapiecie.pl/\\d+[^,]+/"
+            ]
+        },
+        "page_suffix": ["", "page/2", "page/3", "page/4", "page/5", "page/6", "page/7", "page/8", "page/9", "page/10"],
+        "source_site": "wysokienapiecie.pl",
+        "paragraph_tag": "p",
+        "title_tag": "h1",
+        "date_tag": "single-date",
+        "keywords_tag": "tag__link",
+        "potential_premium_tag": "paywall-box",
+        "premium_str": "Wykup dostęp online i przeczytaj do końca",
+        "exclude": [
+            "ez-toc-container",
+            "ez-toc-v2_0_62 counter-hierarchy ez-toc-counter ez-toc-grey ez-toc-container-direction", 
+            "footer-top",
+            "footer-bottom",
+            "cookie-box__content"
+            ],
+        "include": [
+            "single post-type-post"
+        ]
+    },
+    "beurs": {
+        "Front Page": "https://www.beurs.nl/",
+        "topics": {
+            "binnenland": "https://www.beurs.nl/beursnieuws/binnenland",
+            "buitenland": "https://www.beurs.nl/beursnieuws/buitenland"
+        },
+        "url_matchings": {
+            "starts_with": [
+                "placeholder"
+            ],
+            "included_patterns": [ 
+                "https://www.beurs.nl/beursnieuws/binnenland/\\d+[^,]+/",
+                "https://www.beurs.nl/beursnieuws/buitenland/\\d+[^,]+/"
+            ]
+        },
+        "page_suffix": [""],
+        "source_site": "beurs.nl",
+        "paragraph_tag": "p",
+        "title_tag": "article__title",
+        "date_tag": "article__date",
+        "keywords_tag": "",
+        "potential_premium_tag": "",
+        "premium_str": "",
+        "exclude": [
+            "pgAdWrapper",
+            "plusbtn", 
+            "shareoptions",
+            "articles articles--big ",
+            "sitemap",
+            "footer",
+            "footer__list",
+            "copy"
+            ],
+        "include": []
+    }
+}
