@@ -100,9 +100,24 @@ def main():
             col("update.source").alias("source"),
             lit("SHEL").alias("company")
         )
+    
+    cop_updates = yfinance_df \
+        .withColumn("update", explode(col("updates_COP"))) \
+        .select(
+            col("timestamp").alias("record_timestamp"),
+            col("update.price").alias("price"),
+            col("update.volume").alias("volume"),
+            col("update.volatility").alias("volatility"),
+            col("update.bid_ask_spread").alias("bid_ask_spread"),
+            col("update.market_sentiment").alias("market_sentiment"),
+            col("update.trading_activity").alias("trading_activity"),
+            col("update.timestamp").alias("update_timestamp"),
+            col("update.source").alias("source"),
+            lit("COP").alias("company")
+        )
 
     # Union all updates and remove duplicates
-    updates = xom_updates.union(bp_updates).union(shell_updates)
+    updates = xom_updates.union(bp_updates).union(shell_updates).union(cop_updates)
     updates = updates.dropDuplicates(["record_timestamp", "update_timestamp", "company"])
 
     # Save YFinance Data to Silver Path

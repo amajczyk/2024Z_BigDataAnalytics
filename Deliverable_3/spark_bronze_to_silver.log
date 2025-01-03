@@ -22,3 +22,24 @@
 2025-01-03 20:24:20,129 - INFO - Processing YFinance data
 2025-01-03 20:24:20,422 - INFO - Saving processed YFinance data to Silver layer
 2025-01-03 20:30:35,655 - INFO - Spark job completed successfully
+2025-01-03 21:15:50,477 - INFO - Starting Spark job
+2025-01-03 21:15:54,915 - INFO - Spark session initialized
+2025-01-03 21:15:54,915 - INFO - Reading Bronze data
+2025-01-03 21:16:03,172 - INFO - Processing News data
+2025-01-03 21:16:03,406 - INFO - Saving processed News data to Silver layer
+2025-01-03 21:17:15,444 - INFO - Processing YFinance data
+2025-01-03 21:17:15,853 - INFO - Saving processed YFinance data to Silver layer
+2025-01-03 21:30:45,260 - INFO - Spark job completed successfully
+2025-01-03 21:37:40,054 - INFO - Starting Spark job
+2025-01-03 21:37:43,064 - INFO - Spark session initialized
+2025-01-03 21:37:43,065 - INFO - Reading Bronze data
+2025-01-03 21:37:49,605 - INFO - Processing News data
+2025-01-03 21:37:49,876 - INFO - Saving processed News data to Silver layer
+2025-01-03 21:38:47,893 - INFO - Processing YFinance data
+2025-01-03 21:38:48,552 - INFO - Saving processed YFinance data to Silver layer
+2025-01-03 21:47:23,357 - INFO - Spark job completed successfully
+2025-01-03 22:33:00,339 - INFO - Starting Spark job
+2025-01-03 22:33:02,596 - INFO - Spark session initialized
+2025-01-03 22:33:02,596 - INFO - Reading Bronze data
+2025-01-03 22:33:08,189 - INFO - Processing News data
+2025-01-03 22:33:08,384 - INFO - Saving processed News data to Silver layer
