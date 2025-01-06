@@ -6,10 +6,7 @@ import plotly.express as px
 import datetime
 import plotly.graph_objects as go
 import json
-
-
 from datetime import timedelta
-
 
 # Connect to Cassandra
 @st.cache_resource
@@ -19,16 +16,17 @@ def get_cassandra_session():
     session.set_keyspace("gold_layer")
     return session
 
+@st.cache_resource
 def get_cassandra_session_stream():
     cluster = Cluster(["127.0.0.1"])
     session = cluster.connect()
     session.set_keyspace("stream_predictions")
     return session
 
-# Load Data from Cassandra
-# @st.cache_data
-def load_data():
-    print("Loading data from Cassandra")
+# Load Batch Data from Cassandra
+@st.cache_data
+def load_batch_data():
+    print("Loading batch data from Cassandra")
     session = get_cassandra_session()
 
     news_query = "SELECT * FROM aggregated_news"
@@ -50,25 +48,9 @@ def load_data():
 
     return news_df, yfinance_df, keywords_df
 
-
-# def load_predictions():
-#     """Fetch model predictions from Cassandra and return a DataFrame."""
-#     print("Loading model predictions from Cassandra...")
-#     session = get_cassandra_session_stream()
-    
-#     query = "SELECT * FROM model_predictions"
-#     rows = session.execute(query)
-#     df = pd.DataFrame(list(rows))
-
-#     # Ensure event_time is converted to a proper datetime
-#     # (Depending on how Cassandra returns the timestamp, this might be optional)
-#     if "event_time" in df.columns:
-#         df["event_time"] = pd.to_datetime(df["event_time"])
-
-#     return df
-
-def load_predictions():
-    """Fetch model predictions from Cassandra and return a DataFrame."""
+# Load Stream Data from Cassandra
+@st.cache_data
+def load_stream_data():
     print("Loading model predictions from Cassandra...")
     session = get_cassandra_session_stream()
     
@@ -76,31 +58,27 @@ def load_predictions():
     rows = session.execute(query)
     df = pd.DataFrame(list(rows))
 
-    # Ensure event_time is converted to a proper datetime
-    # (Depending on how Cassandra returns the timestamp, this might be optional)
     if "event_time" in df.columns:
         df["event_time"] = pd.to_datetime(df["event_time"])
 
-    # Extract actual_price from input_data JSON
     df['actual_price'] = df['input_data'].apply(lambda x: json.loads(x)['price'])
-
     return df
-
-
 
 # Streamlit App
 st.set_page_config(page_title="Data Aggregation Dashboard", layout="wide")
 st.title("Data Aggregation Dashboard")
 
-# Tabs
+# Create tabs
 tab1, tab2 = st.tabs(["Batch", "Stream"])
+
 
 # Batch Tab
 with tab1:
+    
     st.header("Batch Analysis")
-
-    # Load Data
-    news_df, yfinance_df, keywords_df = load_data()
+    
+    # Load batch data only when in Batch tab
+    news_df, yfinance_df, keywords_df = load_batch_data()
 
     # Filter by aggregation_date
     min_date = max(
@@ -256,13 +234,24 @@ from datetime import timedelta
 #     )
     
 #     st.plotly_chart(pred_plot)
+import numpy as np
 
 with tab2:
    st.header("Real-time Market Analysis")
    
-   predictions_df = load_predictions()
+   predictions_df = load_stream_data()
    available_symbols = predictions_df["symbol"].unique().tolist()
    selected_symbol = st.selectbox("Select Symbol", available_symbols)
+   
+   # Calculate latest model RMSE for selected symbol
+   symbol_predictions = predictions_df[predictions_df["symbol"] == selected_symbol]
+   valid_predictions = symbol_predictions[symbol_predictions["label"].notna()]
+   model_rmse = np.sqrt(((valid_predictions["prediction"] - valid_predictions["label"]) ** 2).mean())
+   
+   # Display model RMSE for selected symbol
+   st.markdown(f'<div style="padding:10px;border-radius:5px;background:#FFB6C1;width:250px;margin-bottom:20px">',unsafe_allow_html=True)
+   st.metric(f"Latest Model RMSE for {selected_symbol}", f"{model_rmse:.4f}")
+   st.markdown('</div>',unsafe_allow_html=True)
    
    symbol_count = len(predictions_df[predictions_df["symbol"] == selected_symbol])
    st.markdown(f'<div style="padding:10px;border-radius:5px;background:#4ECDC4;width:200px;text-align:center">',unsafe_allow_html=True)
