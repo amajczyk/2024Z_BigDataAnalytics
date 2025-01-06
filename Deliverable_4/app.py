@@ -13,6 +13,12 @@ def get_cassandra_session():
     session.set_keyspace("gold_layer")
     return session
 
+def get_cassandra_session_stream():
+    cluster = Cluster(["127.0.0.1"])
+    session = cluster.connect()
+    session.set_keyspace("stream_predictions")
+    return session
+
 # Load Data from Cassandra
 # @st.cache_data
 def load_data():
@@ -37,6 +43,25 @@ def load_data():
             df["aggregation_date"] = df["aggregation_date"].apply(lambda x: x if isinstance(x, datetime.date) else x.date())
 
     return news_df, yfinance_df, keywords_df
+
+
+def load_predictions():
+    """Fetch model predictions from Cassandra and return a DataFrame."""
+    print("Loading model predictions from Cassandra...")
+    session = get_cassandra_session_stream()
+    
+    query = "SELECT * FROM model_predictions"
+    rows = session.execute(query)
+    df = pd.DataFrame(list(rows))
+
+    # Ensure event_time is converted to a proper datetime
+    # (Depending on how Cassandra returns the timestamp, this might be optional)
+    if "event_time" in df.columns:
+        df["event_time"] = pd.to_datetime(df["event_time"])
+
+    return df
+
+
 
 # Streamlit App
 st.set_page_config(page_title="Data Aggregation Dashboard", layout="wide")
@@ -162,5 +187,37 @@ with tab1:
 
 # Stream Tab
 with tab2:
-    st.header("Stream Analysis")
-    st.write("Stream functionality is under development.")
+   
+    st.header("Expected vs. Predicted Price")
+
+    # Load model predictions DataFrame
+    predictions_df = load_predictions()
+
+    # Allow user to pick which symbol to visualize
+    available_symbols = predictions_df["symbol"].unique().tolist()
+    selected_symbol = st.selectbox("Select Symbol", available_symbols)
+
+    # Filter & sort
+    filtered_df = predictions_df[predictions_df["symbol"] == selected_symbol].copy()
+    filtered_df.sort_values(by="event_time", inplace=True)
+
+    # Plot with Plotly Express
+    # Option 1: Passing multiple y-values
+    fig = px.line(
+        filtered_df, 
+        x="event_time", 
+        y=["label", "prediction"], 
+        title=f"Expected vs. Predicted Price for {selected_symbol}"
+    )
+    st.plotly_chart(fig)
+
+    # Option 2: Melt the DataFrame for a single line
+    # df_long = filtered_df.melt(
+    #     id_vars="event_time", 
+    #     value_vars=["label", "prediction"], 
+    #     var_name="Type", 
+    #     value_name="Price"
+    # )
+    # fig = px.line(df_long, x="event_time", y="Price", color="Type", 
+    #               title=f"Expected vs. Predicted Price for {selected_symbol}")
+    # st.plotly_chart(fig)

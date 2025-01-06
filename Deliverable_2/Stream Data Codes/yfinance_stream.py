@@ -7,8 +7,7 @@ from collections import defaultdict
 import threading
 import json
 from queue import Queue
-from google.cloud import pubsub_v1
-from google.oauth2 import service_account
+from confluent_kafka import Producer
 import os
 import requests
 
@@ -49,7 +48,7 @@ def upload_to_hdfs(hdfs_host, folder_path, file_name, data, hdfs_user):
     if response.status_code == 307:
         # Follow the redirect URL
         redirect_url = response.headers['Location'].replace(
-            "hadoop.us-central1-a.c.ccproject-419413.internal", hdfs_host
+            "localhost:9870", hdfs_host
         )
         final_response = requests.put(redirect_url, data=data.encode('utf-8'))
         if final_response.status_code == 201:
@@ -71,51 +70,51 @@ def ensure_hdfs_folder(hdfs_host, folder_path, hdfs_user):
         print(f"Error ensuring HDFS folder exists: {e}")
 
 class StockTracker:
-    def __init__(self, tickers):
+    def __init__(self, tickers, kafka_bootstrap_servers, kafka_topic):
         self.tickers = tickers
         self.stock_data = defaultdict(list)
         self.last_prices = {}
         self.lock = threading.Lock()
         self.message_queue = Queue()
-        self.project_id = "ccproject-419413"
-        self.topic_id = "topic-1"
+        self.kafka_bootstrap_servers = kafka_bootstrap_servers
+        self.kafka_topic = kafka_topic
         
-        # Initialize Pub/Sub (with fallback to no publishing if setup fails)
-        self.publisher = None
-        self.topic_path = None
-        self.setup_pubsub()
+        # Initialize Kafka producer (with fallback to no publishing if setup fails)
+        self.producer = None
+        self.setup_kafka()
         
         # Initialize with current prices and other metrics
         self.initialize_stocks()
         
-    def setup_pubsub(self):
+    def setup_kafka(self):
         try:
-            # Load config file
-            with open('config.json', 'r') as f:
-                self.config = json.load(f)
+            # Kafka configuration
+            conf = {
+                'bootstrap.servers': ','.join(self.kafka_bootstrap_servers),
+                'client.id': 'stock-tracker-producer',
+                'acks': 'all',  # Ensure all replicas acknowledge
+                'retries': 5,    # Retry up to 5 times on failure
+                'linger.ms': 10  # Slight delay to batch messages
+            }
             
-            # Use config file directly as credentials
-            credentials = service_account.Credentials.from_service_account_info(
-                self.config,
-                scopes=['https://www.googleapis.com/auth/pubsub']
-            )
+            # Initialize Kafka producer
+            self.producer = Producer(**conf)
+            print("Successfully initialized Kafka producer")
             
-            # Initialize Pub/Sub publisher
-            self.publisher = pubsub_v1.PublisherClient(credentials=credentials)
-            self.topic_path = self.publisher.topic_path(
-                self.project_id,
-                self.topic_id
-            )
-            print("Successfully initialized Pub/Sub publisher")
+            # Optional: Start a background thread to serve delivery callbacks
+            # (Not strictly necessary as callbacks are handled via polling)
             
-        except FileNotFoundError as e:
-            print(f"Warning: Configuration file not found: {e}")
-            print("Running without Pub/Sub integration")
         except Exception as e:
-            print(f"Warning: Failed to initialize Pub/Sub: {e}")
-            print("Running without Pub/Sub integration")
-            self.publisher = None
-            self.topic_path = None
+            print(f"Warning: Failed to initialize Kafka producer: {e}")
+            print("Running without Kafka integration")
+            self.producer = None
+
+    def delivery_report(self, err, msg):
+        """Callback for message delivery reports."""
+        if err is not None:
+            print(f"Failed to deliver message: {err}")
+        else:
+            print(f"Message delivered to {msg.topic()} [{msg.partition()}] at offset {msg.offset()}")
 
     def initialize_stocks(self):
         print("Initializing current stock data...")
@@ -142,13 +141,13 @@ class StockTracker:
                     'trading_activity': 50
                 }
 
-    def publish_to_pubsub(self, ticker, data):
-        if not self.publisher or not self.topic_path:
+    def publish_to_kafka(self, ticker, data):
+        if not self.producer:
             return
             
         try:
             # Convert data to desired format
-            pubsub_data = {
+            kafka_data = {
                 'symbol': ticker,
                 'timestamp': int(datetime.fromisoformat(data['timestamp']).timestamp() * 1000), # Convert to milliseconds
                 'source': 'YLIFE_FEED', # Match enum value
@@ -164,17 +163,29 @@ class StockTracker:
                 'trading_activity': float(data['trading_activity'])
             }
             
-            # Convert to JSON string and encode as bytes
-            message_data = json.dumps(pubsub_data).encode('utf-8')
+            # Convert to JSON string
+            message_data = json.dumps(kafka_data)
             
-            # Publish message
-            print(f"Publishing message to Pub/Sub for {ticker}...")
-            future = self.publisher.publish(self.topic_path, message_data)
-            future.result()  # Wait for message to be published
-            print(f"Successfully published message to Pub/Sub for {ticker}")
+            # Produce message asynchronously with delivery report callback
+            self.producer.produce(
+                self.kafka_topic,
+                value=message_data,
+                callback=self.delivery_report
+            )
+
+                    # Produce the same message to model-topic
+            self.producer.produce(
+                'model-topic',
+                value=message_data,
+                callback=self.delivery_report
+            )
+            
+            # Trigger any available delivery report callbacks from previous produce() calls
+            self.producer.poll(0)
+            print(f"Publishing message to Kafka for {ticker}...")
             
         except Exception as e:
-            print(f"Error publishing to Pub/Sub: {e}")
+            print(f"Error publishing to Kafka: {e}")
 
     def on_ticker_update(self, ws, msg):
         self.message_queue.put(msg)
@@ -228,8 +239,8 @@ class StockTracker:
         }
         self.stock_data[ticker].append(update_data)
         
-        # Publish to Pub/Sub
-        self.publish_to_pubsub(ticker, update_data)
+        # Publish to Kafka
+        self.publish_to_kafka(ticker, update_data)
 
     def print_latest_update(self, ticker):
         if ticker in self.stock_data and self.stock_data[ticker]:
@@ -263,9 +274,9 @@ class StockTracker:
 
     def run(self):
         # HDFS configuration
-        hdfs_host = "http://34.67.32.69:50070/"
+        hdfs_host = "http://localhost:9870"
         folder_path = "/user/adam_majczyk2001/nifi/bronze/yfinance/"
-        ensure_hdfs_folder(hdfs_host=hdfs_host, folder_path=folder_path, hdfs_user="adam_majczyk2001")
+        ensure_hdfs_folder(hdfs_host=hdfs_host, folder_path=folder_path, hdfs_user="hadoop")
 
         # Start websocket in a separate thread
         websocket_thread = threading.Thread(target=lambda: yliveticker.YLiveTicker(
@@ -305,7 +316,7 @@ class StockTracker:
                     
                     try:
                         # Write to HDFS using the provided function
-                        write_to_hdfs_json(hdfs_host, folder_path, filename, hdfs_data, hdfs_user="adam_majczyk2001")
+                        write_to_hdfs_json(hdfs_host, folder_path, filename, hdfs_data, hdfs_user="hadoop")
                         print(f"Successfully wrote updates to HDFS: {filename}")
                         # Reinitialize stock prices after successful HDFS update
                         print("Reinitializing stock prices...")
@@ -318,9 +329,17 @@ class StockTracker:
 
         except KeyboardInterrupt:
             print("\nStopping stock tracker...")
+            if self.producer:
+                # Flush any remaining messages
+                print("Flushing pending messages to Kafka...")
+                self.producer.flush()
+                print("Kafka producer closed.")
 
 if __name__ == "__main__":
+    # Define Kafka configurations
+    kafka_bootstrap_servers = ['localhost:9092']  # Replace with your Kafka broker addresses
+    kafka_topic = 'test-topic'  # Replace with your desired Kafka topic
+    
     tickers = ["XOM", "BP", "SHEL", "COP"]
-    tracker = StockTracker(tickers)
+    tracker = StockTracker(tickers, kafka_bootstrap_servers, kafka_topic)
     tracker.run()
-
