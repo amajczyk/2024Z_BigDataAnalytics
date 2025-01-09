@@ -13,9 +13,12 @@ spark = (
         "com.datastax.spark:spark-cassandra-connector_2.12:3.5.0",
     )
     .config("spark.cassandra.connection.host", "localhost")
+    .config("spark.streaming.backpressure.enabled", "true") # Limit input rate
+    .config("spark.streaming.kafka.maxRatePerPartition", "100")  # Limit input rate
+    .config("spark.streaming.kafka.minRatePerPartition", "10")  # Ensure minimum processing
     .config("spark.driver.host", "localhost")
     .config("spark.ui.port", "4047")
-    .master("local[2]")
+    .master("local[4]")
     .getOrCreate()
 )
 

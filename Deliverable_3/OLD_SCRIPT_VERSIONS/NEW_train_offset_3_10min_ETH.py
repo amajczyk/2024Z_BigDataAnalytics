@@ -71,7 +71,6 @@ spark = SparkSession.builder \
             "com.datastax.spark:spark-cassandra-connector_2.12:3.5.0") \
     .config("spark.cassandra.connection.host", "localhost") \
     .config("spark.ui.port", str(4050 + spark_port_offset[TARGET_SYMBOL])) \
-    .master("local[2]") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("ERROR")
@@ -195,7 +194,10 @@ def save_model(model):
 
 lr_model = load_model()
 
+from time import time
+
 def update_model(batch_df: DataFrame, batch_id: int):
+
     global lr_model
 
     if batch_df.rdd.isEmpty():
@@ -203,6 +205,8 @@ def update_model(batch_df: DataFrame, batch_id: int):
         return
 
     try:
+        start_time = time()  # Start the timer
+
         lr = LinearRegression(
             featuresCol="features",
             labelCol="label",
@@ -212,8 +216,10 @@ def update_model(batch_df: DataFrame, batch_id: int):
         )
         new_model = lr.fit(batch_df)
         lr_model = new_model
+        update_time = time() - start_time  # Calculate elapsed time
 
         print(f"[{TARGET_SYMBOL}] Updated model with batch {batch_id}")
+        print(f"[{TARGET_SYMBOL}] Model update took {update_time:.5f}")
         print(f"[{TARGET_SYMBOL}] Coefficients: {lr_model.coefficients}")
         print(f"[{TARGET_SYMBOL}] Intercept: {lr_model.intercept}")
 
@@ -251,6 +257,7 @@ processed_df_for_pred = assembler_pred.transform(
 )
 
 def predict_incoming(batch_df: DataFrame, batch_id: int):
+    start_time = time()  # Start the timer
     if batch_df.rdd.isEmpty():
         print(f"[{TARGET_SYMBOL}] Predictor batch {batch_id} empty")
         return
@@ -290,6 +297,8 @@ def predict_incoming(batch_df: DataFrame, batch_id: int):
      .options(table=CASSANDRA_TABLE, keyspace=CASSANDRA_KEYSPACE) \
      .save()
 
+    update_time = time() - start_time  # Calculate elapsed time
+    print(f"[{TARGET_SYMBOL}] Predictions took {update_time:.8f}.")
     print(f"[{TARGET_SYMBOL}] Completed predictions for batch {batch_id}")
 
 # Start predictor stream with minimal trigger interval
@@ -304,6 +313,7 @@ print(f"[{TARGET_SYMBOL}] Started predictor query")
 
 # Start label updater stream
 def update_labels(batch_df: DataFrame, batch_id: int):
+    start_time = time()  # Start the timer
     if batch_df.rdd.isEmpty():
         return
 
@@ -344,6 +354,9 @@ def update_labels(batch_df: DataFrame, batch_id: int):
                 .mode("append") \
                 .options(table=CASSANDRA_TABLE, keyspace=CASSANDRA_KEYSPACE) \
                 .save()
+    
+    update_time = time() - start_time  # Calculate elapsed time
+    print(f"[{TARGET_SYMBOL}] U[dating labels took] {update_time:.8f}.")
 
 # Start label updater stream
 query_labels = processed_df.writeStream \

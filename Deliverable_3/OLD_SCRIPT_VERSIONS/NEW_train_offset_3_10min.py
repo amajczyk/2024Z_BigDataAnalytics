@@ -8,7 +8,7 @@ import numpy as np
 import time
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col, udf, split, window, from_unixtime, avg,  when, lit
+from pyspark.sql.functions import from_json, col, udf, split, window, from_unixtime, avg
 from pyspark.sql.types import StructType, StringType, DoubleType, LongType, TimestampType
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.regression import LinearRegression, LinearRegressionModel
@@ -71,7 +71,6 @@ spark = SparkSession.builder \
             "com.datastax.spark:spark-cassandra-connector_2.12:3.5.0") \
     .config("spark.cassandra.connection.host", "localhost") \
     .config("spark.ui.port", str(4050 + spark_port_offset[TARGET_SYMBOL])) \
-    .master("local[2]") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("ERROR")
@@ -108,33 +107,12 @@ filtered_df = parsed_df.filter(col("symbol") == TARGET_SYMBOL)
 
 LABEL_COLUMN = "price"
 
-
-# *** BEGIN MODIFICATION ***
-# Correct the 'price' for Ethereum if it's set to -1 by computing the average of 'bid' and 'ask'
-if TARGET_SYMBOL == "ETHEREUM":
-    # Create a corrected 'price' column
-    corrected_price = when(col("price") == -1, (col("bid") + col("ask")) / 2).otherwise(col("price"))
-    
-    # Apply the corrected 'price' to both 'price' feature and 'label'
-    processed_df = filtered_df.withColumn(
-        "price_corrected",
-        corrected_price.cast("double")
-    ).select(
-        col("symbol").alias("symbol"),
-        *[col(feature).cast("double").alias(f"{feature}") for feature in FEATURE_COLUMNS if feature != "price"],
-        col("price_corrected").alias("price"),  # Updated 'price' for features
-        col("price_corrected").alias("label"),  # Updated 'label'
-        col("timestamp").cast("long").alias("timestamp")  # Include timestamp for Cassandra or other sinks
-    )
-else:
-    # For other symbols, no correction needed
-    processed_df = filtered_df.select(
-        col("symbol").alias("symbol"),
-        *[col(feature).cast("double").alias(f"{feature}") for feature in FEATURE_COLUMNS],
-        col(LABEL_COLUMN).cast("double").alias("label"),  # Use the original 'price' as label
-        col("timestamp").cast("long").alias("timestamp")  # Include timestamp for Cassandra or other sinks
-    )
-# *** END MODIFICATION ***
+processed_df = filtered_df.select(
+    col("symbol").alias("symbol"),
+    *[col(feature).cast("double").alias(f"{feature}") for feature in FEATURE_COLUMNS],
+    col(LABEL_COLUMN).cast("double").alias("label"),
+    col("timestamp").cast("long").alias("timestamp")
+)
 
 processed_df = processed_df.withColumn(
     "event_time",

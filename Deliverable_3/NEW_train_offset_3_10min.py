@@ -71,6 +71,7 @@ spark = SparkSession.builder \
             "com.datastax.spark:spark-cassandra-connector_2.12:3.5.0") \
     .config("spark.cassandra.connection.host", "localhost") \
     .config("spark.ui.port", str(4050 + spark_port_offset[TARGET_SYMBOL])) \
+    .master("local[4]") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("ERROR")
