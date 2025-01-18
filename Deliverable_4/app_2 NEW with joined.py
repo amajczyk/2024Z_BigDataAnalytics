@@ -28,7 +28,7 @@ def get_cassandra_session_stream():
     return session
 
 # Load Batch Data from Cassandra
-# @st.cache_data
+@st.cache_data
 def load_batch_data():
     print("Loading batch data from Cassandra")
     session = get_cassandra_session()
@@ -53,19 +53,32 @@ def load_batch_data():
     return news_df, yfinance_df, keywords_df
 
 # Load Stream Data from Cassandra
-# @st.cache_data
+@st.cache_data
 def load_stream_data():
-    print("Loading model predictions from Cassandra...")
+    print("Loading model predictions from last 24h from Cassandra...")
     session = get_cassandra_session_stream()
     
-    query = "SELECT * FROM model_predictions_10m"
-    rows = session.execute(query)
+    # Calculate timestamp for 24 hours ago
+    current_time = datetime.datetime.now()
+    time_24h_ago = current_time - datetime.timedelta(hours=24)
+    
+    # Convert to timestamp in milliseconds for Cassandra
+    timestamp_24h_ago = int(time_24h_ago.timestamp() * 1000)
+    
+    # Modify query to include timestamp filter
+    query = """
+        SELECT * FROM model_predictions_10m 
+        WHERE timestamp >= %s 
+        ALLOW FILTERING
+    """
+    
+    rows = session.execute(query, [timestamp_24h_ago])
     df = pd.DataFrame(list(rows))
 
-    if "event_time" in df.columns:
+    if not df.empty and "event_time" in df.columns:
         df["event_time"] = pd.to_datetime(df["event_time"])
-
-    df['actual_price'] = df['input_data'].apply(lambda x: json.loads(x)['price'])
+        df['actual_price'] = df['input_data'].apply(lambda x: json.loads(x)['price'])
+    
     return df
 
 
