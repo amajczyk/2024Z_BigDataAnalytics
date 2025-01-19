@@ -109,7 +109,6 @@ filtered_df = parsed_df.filter(col("symbol") == TARGET_SYMBOL)
 LABEL_COLUMN = "price"
 
 
-# *** BEGIN MODIFICATION ***
 # Correct the 'price' for Ethereum if it's set to -1 by computing the average of 'bid' and 'ask'
 if TARGET_SYMBOL == "ETHEREUM":
     # Create a corrected 'price' column
@@ -134,7 +133,7 @@ else:
         col(LABEL_COLUMN).cast("double").alias("label"),  # Use the original 'price' as label
         col("timestamp").cast("long").alias("timestamp")  # Include timestamp for Cassandra or other sinks
     )
-# *** END MODIFICATION ***
+
 
 processed_df = processed_df.withColumn(
     "event_time",

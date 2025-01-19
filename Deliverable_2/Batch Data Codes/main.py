@@ -10,8 +10,6 @@ from hdfs import ensure_hdfs_folder, write_to_hdfs_json
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# hdfs_host = os.environ["HDFS_HOST"]
-# folder_path = os.environ["FOLDER_PATH"]
 hdfs_host = "http://34.67.32.69:50070/"
 folder_path = "/user/adam_majczyk2001/nifi/bronze/news/"
 
@@ -24,9 +22,6 @@ def main(request):
         
         request_json = request.get_json(silent=True)
         request_args = request.args
-
-        # hdfs_host = os.environ["HDFS_HOST"]
-        # folder_path = os.environ["FOLDER_PATH"]
 
         logger.info("Loading site variables configuration.")
         with open("variables_dict.json", "r", encoding="utf-8") as f:
