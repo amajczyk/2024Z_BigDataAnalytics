@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# ================================
-# Enhanced Bash Script to Start NIFI, Hadoop, Kafka, and Screen Sessions
-# ================================
 
 # Exit immediately if a command exits with a non-zero status
 set -e

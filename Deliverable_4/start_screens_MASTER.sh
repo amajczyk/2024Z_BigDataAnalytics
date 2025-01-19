@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# ================================
-# Enhanced Bash Script to Start NIFI, Hadoop, Kafka, and Screen Sessions
-# ================================
-
 # Exit immediately if a command exits with a non-zero status
 set -e
 
@@ -27,30 +23,30 @@ print_usage() {
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -s|--symbols)
-            if [[ -z "$2" ]] || [[ "$2" == --* ]]; then
-                echo "Error: -s requires a comma-separated list of symbols"
-                print_usage
-            fi
-            IFS=',' read -ra SYMBOLS <<< "$2"
-            if [[ ${#SYMBOLS[@]} -lt 1 ]] || [[ ${#SYMBOLS[@]} -gt 5 ]]; then
-                echo "Error: Please provide between 1 and 5 symbols"
-                print_usage
-            fi
-            shift 2
-            ;;
-        --retrain_historical_models)
-            if [[ "$2" != "true" ]] && [[ "$2" != "false" ]]; then
-                echo "Error: --retrain_historical_models must be 'true' or 'false'"
-                print_usage
-            fi
-            RETRAIN_HISTORICAL="$2"
-            shift 2
-            ;;
-        *)
-            echo "Unknown parameter: $1"
+    -s | --symbols)
+        if [[ -z "$2" ]] || [[ "$2" == --* ]]; then
+            echo "Error: -s requires a comma-separated list of symbols"
             print_usage
-            ;;
+        fi
+        IFS=',' read -ra SYMBOLS <<<"$2"
+        if [[ ${#SYMBOLS[@]} -lt 1 ]] || [[ ${#SYMBOLS[@]} -gt 5 ]]; then
+            echo "Error: Please provide between 1 and 5 symbols"
+            print_usage
+        fi
+        shift 2
+        ;;
+    --retrain_historical_models)
+        if [[ "$2" != "true" ]] && [[ "$2" != "false" ]]; then
+            echo "Error: --retrain_historical_models must be 'true' or 'false'"
+            print_usage
+        fi
+        RETRAIN_HISTORICAL="$2"
+        shift 2
+        ;;
+    *)
+        echo "Unknown parameter: $1"
+        print_usage
+        ;;
     esac
 done
 
@@ -256,37 +252,17 @@ start_kafka_services() {
                 log "Kafka started in screen session 'kafka_screen'."
             fi
 
-            # # Wait until Kafka is ready (default port 9092)
-            # if wait_for_port "localhost" 9092 10; then
-            #     log "Kafka is ready."
-            #     kafka_started=true
-            #     break
-            # else
-            #     log "Kafka failed to start within the expected time."
-
-            #     # Check if the port is congested
-            #     if kill_process_on_port 9092; then
-            #         log "Freed up port 9092. Retrying Kafka startup..."
-            #     else
-            #         log "Port 9092 is not congested. Cannot proceed with Kafka restart."
-            #     fi
-            # fi
-
             attempt=$((attempt + 1))
             echo "Wait 10 seconds"
             sleep 10
         done
 
-        # if [ "$kafka_started" = false ]; then
-        #     log "Failed to start Kafka after $max_retries attempts."
-        #     exit 1
-        # fi
     fi
 }
 
 start_cassandra() {
     # Check if Cassandra is already running
-    if pgrep -x "cassandra" > /dev/null; then
+    if pgrep -x "cassandra" >/dev/null; then
         echo "Cassandra is already running."
         return 0
     fi
@@ -297,14 +273,14 @@ start_cassandra() {
     if [ ! -f "$CONDA_PATH" ]; then
         CONDA_PATH="$HOME/miniconda3/etc/profile.d/conda.sh"
     fi
-    
+
     if [ ! -f "$CONDA_PATH" ]; then
         echo "Could not find conda.sh. Please ensure Anaconda/Miniconda is installed."
         return 1
     fi
-    
+
     source "$CONDA_PATH"
-    
+
     # Activate the Conda environment
     echo "Activating Conda environment..."
     conda activate cassandra_env_39 || {
@@ -314,14 +290,14 @@ start_cassandra() {
 
     # Start Cassandra with modified logging location
     echo "Starting Cassandra..."
-    cassandra -R &> "$LOCAL_LOG_DIR/cassandra_startup.log" &
-    
+    cassandra -R &>"$LOCAL_LOG_DIR/cassandra_startup.log" &
+
     # Get the Cassandra PID
     CASSANDRA_PID=$!
-    
+
     # Function to check if Cassandra is initialized
     check_cassandra_status() {
-        nodetool status &> /dev/null
+        nodetool status &>/dev/null
         return $?
     }
 
@@ -331,7 +307,7 @@ start_cassandra() {
     while ! check_cassandra_status && [ $COUNTER -lt 120 ]; do
         sleep 1
         ((COUNTER++))
-        
+
         # Show progress every 10 seconds
         if [ $((COUNTER % 10)) -eq 0 ]; then
             echo "Still waiting for Cassandra to initialize... ($COUNTER seconds)"
@@ -341,17 +317,17 @@ start_cassandra() {
     # Check if initialization was successful
     if check_cassandra_status; then
         echo "Cassandra successfully started and initialized"
-        
+
         # Deactivate Python virtual environment
         echo "Deactivating Python virtual environment..."
         deactivate
         return 0
     else
         echo "Failed to initialize Cassandra within timeout period"
-        
+
         # Kill Cassandra process if it failed to initialize
         kill $CASSANDRA_PID
-        
+
         # Deactivate Python virtual environment
         echo "Deactivating Python virtual environment..."
         deactivate
@@ -384,15 +360,15 @@ start_python_screen_session() {
     # Create a log directory if it doesn't exist
     mkdir -p "$directory/error_logs"
     local ERROR_LOG="$directory/error_logs/${session_name}_error.log"
-    
+
     # Use absolute path for start_script.sh and pass both symbol and retrain_historical
     CMD="cd '$directory' && $directory/start_script.sh \"$script\" $symbol $retrain_historical 2>&1 | tee -a \"$ERROR_LOG\""
-    
+
     log "Debug: About to execute command: $CMD"
 
     # Start a new detached screen session with error redirection
     screen -L -Logfile "$ERROR_LOG" -dmS "$session_name" bash -c "$CMD"
-    
+
     # Wait a moment and verify the screen session was created
     sleep 2
     if ! screen -list | grep -q "\.${session_name}"; then
@@ -445,7 +421,6 @@ start_kafka_services
 log "Waiting 30 seconds before creating/checking availablity of topics..."
 sleep 30
 
-
 # Check if Kafka is running
 if ! nc -z localhost 9092 >/dev/null 2>&1; then
     log "Error: Cannot connect to Kafka on localhost:9092. Is Kafka running?"
@@ -456,8 +431,8 @@ BOOTSTRAP_SERVER="localhost:9092"
 TOPICS=("model-topic:7" "test-topic:3" "model-topic-eth:3" "model-topic-bp:3")
 
 for topic_config in "${TOPICS[@]}"; do
-    IFS=':' read -r topic partitions <<< "$topic_config"
-    
+    IFS=':' read -r topic partitions <<<"$topic_config"
+
     if kafka-topics.sh --list --bootstrap-server $BOOTSTRAP_SERVER | grep -q "^$topic$"; then
         log "Topic $topic already exists"
     else
@@ -473,7 +448,7 @@ for topic_config in "${TOPICS[@]}"; do
 done
 
 # Check current number of partitions for model-topic
-current_partitions=$(kafka-topics.sh --describe --topic model-topic --bootstrap-server $BOOTSTRAP_SERVER | 
+current_partitions=$(kafka-topics.sh --describe --topic model-topic --bootstrap-server $BOOTSTRAP_SERVER |
     grep 'PartitionCount' | awk '{for(i=1;i<=NF;i++) if($i=="PartitionCount:") print $(i+1)}')
 
 if [ -z "$current_partitions" ]; then
@@ -491,16 +466,10 @@ else
     log "Topic already has 7 partitions. Skipping modification."
 fi
 
-# Start Cassandra 
-# start_cassandra
 
 # Start screen sessions for batch and stream sources
 start_screen_session "batch_sources_screen" "$BATCH_DIR" "$BATCH_SCRIPT"
 start_screen_session "stream_sources_screen" "$STREAM_DIR" "$STREAM_SCRIPT"
-
-# Start Ethereum model screen session
-# log "Starting Ethereum model screen session..."
-# start_python_screen_session "ethereum_model" "$STREAM_SPARK_MODELS_DIR" "$STREAM_ETHEREUM_MODEL" "ETHEREUM"
 
 # Start screens for other symbols
 for symbol in "${SYMBOLS[@]}"; do
@@ -522,5 +491,4 @@ echo "  Network URL: http://10.0.2.15:8501"
 echo "  External URL: http://89.64.68.185:8501"
 
 log "All screen sessions have been started successfully."
-
 log "All services and screen sessions have been initiated."

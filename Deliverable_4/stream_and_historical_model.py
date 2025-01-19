@@ -414,7 +414,6 @@ filtered_df = parsed_df.filter(col("symbol") == TARGET_SYMBOL)
 LABEL_COLUMN = "price"
 
 
-# *** BEGIN MODIFICATION ***
 # Correct the 'price' for Ethereum if it's set to -1 by computing the average of 'bid' and 'ask'
 if TARGET_SYMBOL == "ETHEREUM":
     # Create a corrected 'price' column
@@ -439,7 +438,7 @@ else:
         col(LABEL_COLUMN).cast("double").alias("label"),  # Use the original 'price' as label
         col("timestamp").cast("long").alias("timestamp")  # Include timestamp for Cassandra or other sinks
     )
-# *** END MODIFICATION ***
+
 
 processed_df = processed_df.withColumn(
     "event_time",
@@ -557,71 +556,6 @@ processed_df_for_pred = assembler_pred.transform(
     "timestamp",
     "event_time"
 )
-
-
-# def predict_incoming(batch_df: DataFrame, batch_id: int):
-#     global historical_model, lr_model
-    
-#     if batch_df.rdd.isEmpty():
-#         print(f"[{TARGET_SYMBOL}] Predictor batch {batch_id} empty")
-#         return
-
-#     if historical_model is None:
-#         historical_model = load_historical_model()
-#     if lr_model is None:
-#         lr_model = load_model()
-
-#     if lr_model is None or historical_model is None:
-#         print(f"[{TARGET_SYMBOL}] One or both models not available")
-#         return
-
-#     # Get predictions from both models
-#     streaming_predictions = lr_model.transform(batch_df)
-#     historical_predictions = historical_model.transform(batch_df)
-
-#     # raname the prediction column to prediction_historical
-#     historical_predictions = historical_predictions.withColumnRenamed("prediction", "prediction_historical")
-
-#     # Combine predictions
-#     predictions = streaming_predictions.select(
-#         col("symbol"),
-#         col("timestamp"),
-#         col("event_time"),
-#         col("features"),
-#         col("label"),
-#         col("prediction").alias("prediction"),
-#         historical_predictions["prediction_historical"].alias("prediction_historical")
-#     )
-
-#     @udf(StringType())
-#     def features_to_json(features):
-#         return json.dumps({
-#             f: float(value) for f, value in zip(FEATURE_COLUMNS, features)
-#         })
-
-#     predictions_to_save = predictions.withColumn(
-#         "input_data", 
-#         features_to_json(col("features"))
-#     ).withColumn(
-#         "label",
-#         F.lit(None).cast(DoubleType())
-#     )
-
-#     predictions_to_save.select(
-#         col("symbol"),
-#         col("timestamp"),
-#         col("event_time"),
-#         col("input_data"),
-#         col("prediction"),
-#         col("prediction_historical"),
-#         col("label")
-#     ).write \
-#      .format("org.apache.spark.sql.cassandra") \
-#      .mode("append") \
-#      .options(table=CASSANDRA_TABLE, keyspace=CASSANDRA_KEYSPACE) \
-#      .save()
-
-#     print(f"[{TARGET_SYMBOL}] Completed predictions for batch {batch_id}")
 
 def predict_incoming(batch_df: DataFrame, batch_id: int):
     global historical_model, lr_model

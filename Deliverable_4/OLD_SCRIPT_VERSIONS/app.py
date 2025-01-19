@@ -6,9 +6,9 @@ import plotly.express as px
 import datetime
 import plotly.graph_objects as go
 import json
-
-
 from datetime import timedelta
+import plotly.express as px
+
 
 
 # Connect to Cassandra
@@ -50,22 +50,6 @@ def load_data():
 
     return news_df, yfinance_df, keywords_df
 
-
-# def load_predictions():
-#     """Fetch model predictions from Cassandra and return a DataFrame."""
-#     print("Loading model predictions from Cassandra...")
-#     session = get_cassandra_session_stream()
-    
-#     query = "SELECT * FROM model_predictions"
-#     rows = session.execute(query)
-#     df = pd.DataFrame(list(rows))
-
-#     # Ensure event_time is converted to a proper datetime
-#     # (Depending on how Cassandra returns the timestamp, this might be optional)
-#     if "event_time" in df.columns:
-#         df["event_time"] = pd.to_datetime(df["event_time"])
-
-#     return df
 
 def load_predictions():
     """Fetch model predictions from Cassandra and return a DataFrame."""
@@ -179,23 +163,6 @@ with tab1:
 
     print(keywords_df.head())
 
-    # # 8. Keyword Distribution Over Time with Animation
-    # keywords_over_time = keywords_df.groupby(["aggregation_date", "keyword"])["count"].sum().reset_index()
-    # fig8 = px.scatter(
-    #     keywords_over_time, 
-    #     x="aggregation_date", 
-    #     y="count", 
-    #     color="keyword", 
-    #     size="count",
-    #     animation_frame="aggregation_date",
-    #     title="Keyword Distribution Over Time (Animated)",
-    #     range_x=[min_date, max_date],  # Set constant x-axis limits
-    #     range_y=[0, keywords_over_time["count"].max()],  # Set dynamic y-axis limits
-    #     opacity=0.5
-    # )
-    # fig8.update_layout(xaxis_title="Days", yaxis_title="Keyword Counts")
-    # st.plotly_chart(fig8)
-
     # 8. Treemap for Keyword Counts
     keywords_filtered = keywords_df[keywords_df["count"] > 1]
     fig8 = px.treemap(
@@ -211,51 +178,7 @@ with tab1:
     st.plotly_chart(fig8)
 
 
-import plotly.express as px
-from datetime import timedelta
 
-# Correct code
-# with tab2:
-#     st.header("Expected vs. Predicted Price")
-
-#     predictions_df = load_predictions()
-#     available_symbols = predictions_df["symbol"].unique().tolist()
-#     selected_symbol = st.selectbox("Select Symbol", available_symbols)
-
-#     filtered_df = predictions_df[predictions_df["symbol"] == selected_symbol].copy()
-#     filtered_df.sort_values(by="event_time", inplace=True)
-    
-    
-#     actual_df = filtered_df[filtered_df["event_time"]- timedelta(minutes=10) >= filtered_df["event_time"].min()].copy()
-#     actual_df["event_time"] = actual_df["event_time"] - timedelta(minutes=10)
-
-
-#     pred_plot = px.line(filtered_df, x="event_time", y="prediction", title=f"Expected vs. Predicted Price for {selected_symbol}")
-#     label_plot = px.line(filtered_df[filtered_df["label"].notna()], x="event_time", y="label")
-#     actual_plot = px.line(actual_df, x="event_time", y="actual_price")
-    
-#     pred_plot.add_traces(label_plot.data)
-#     pred_plot.add_traces(actual_plot.data)
-
-#     pred_plot.data[0].name = "Predicted"
-#     pred_plot.data[0].line.color = "red"
-#     pred_plot.data[1].name = "Expected"
-#     pred_plot.data[1].line.color = "blue"
-#     pred_plot.data[2].name = "Actual"
-#     pred_plot.data[2].line.color = "green"
-    
-#     pred_plot.update_layout(
-#         showlegend=True,
-#         legend=dict(
-#             yanchor="top",
-#             y=0.99,
-#             xanchor="left",
-#             x=0.01,
-#             bgcolor="rgba(0,0,0,0)"
-#         )
-#     )
-    
-#     st.plotly_chart(pred_plot)
 
 with tab2:
    st.header("Real-time Market Analysis")
