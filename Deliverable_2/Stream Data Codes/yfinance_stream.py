@@ -101,8 +101,6 @@ class StockTracker:
             self.producer = Producer(**conf)
             print("Successfully initialized Kafka producer")
             
-            # Optional: Start a background thread to serve delivery callbacks
-            # (Not strictly necessary as callbacks are handled via polling)
             
         except Exception as e:
             print(f"Warning: Failed to initialize Kafka producer: {e}")
